@@ -4,7 +4,7 @@ const path = require("node:path");
 const test = require("node:test");
 
 const calculatorPath = path.join(__dirname, "..", "calculator.js");
-const { calculate } = require(calculatorPath);
+const { calculate, modulo, power, squareRoot } = require(calculatorPath);
 
 test("addition adds the image example and supports negative and decimal values", () => {
   assert.equal(calculate(2, "addition", 3), 5);
@@ -41,10 +41,38 @@ test("division by positive or negative zero throws a clear error", () => {
   );
 });
 
+test("modulo returns the remainder for the image example and edge cases", () => {
+  assert.equal(modulo(5, 2), 1);
+  assert.equal(calculate(5, "modulo", 2), 1);
+  assert.equal(modulo(-10, 3), -1);
+  assert.equal(modulo(0, 3), 0);
+  assert.throws(() => modulo(1, 0), /módulo por zero/);
+  assert.throws(() => modulo(1, Number.POSITIVE_INFINITY), /números válidos/);
+});
+
+test("power raises a base to an exponent for the image example and edge cases", () => {
+  assert.equal(power(2, 3), 8);
+  assert.equal(power(9, 0.5), 3);
+  assert.equal(calculate(2, "power", 3), 8);
+  assert.equal(power(5, 0), 1);
+  assert.equal(power(2, -2), 0.25);
+  assert.throws(() => power(2, Number.NaN), /números válidos/);
+});
+
+test("squareRoot returns the image example and rejects negative or invalid numbers", () => {
+  assert.equal(squareRoot(16), 4);
+  assert.equal(calculate(16, "squareRoot"), 4);
+  assert.equal(squareRoot(9), 3);
+  assert.equal(calculate(0, "squareRoot"), 0);
+  assert.throws(() => squareRoot(-1), /número negativo/);
+  assert.throws(() => calculate(-16, "squareRoot"), /número negativo/);
+  assert.throws(() => squareRoot(Number.NaN), /número válido/);
+});
+
 test("unsupported operations throw an error listing the supported operations", () => {
   assert.throws(
-    () => calculate(1, "modulo", 2),
-    /Operação inválida: "modulo".*addition, subtraction, multiplication ou division/,
+    () => calculate(1, "unknown", 2),
+    /Operação inválida: "unknown".*addition, subtraction, multiplication, division, modulo, power ou squareRoot/,
   );
 });
 
@@ -89,4 +117,29 @@ test("CLI reports division by zero as an error", () => {
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /não é possível dividir por zero/);
+});
+
+test("CLI prints results for modulo, power, and squareRoot", () => {
+  for (const [args, expected] of [
+    [["5", "modulo", "2"], "1\n"],
+    [["2", "power", "3"], "8\n"],
+    [["16", "squareRoot"], "4\n"],
+  ]) {
+    const result = spawnSync(process.execPath, [calculatorPath, ...args], {
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout, expected);
+    assert.equal(result.stderr, "");
+  }
+});
+
+test("CLI reports negative square roots as errors", () => {
+  const result = spawnSync(process.execPath, [calculatorPath, "-1", "squareRoot"], {
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /número negativo/);
 });
